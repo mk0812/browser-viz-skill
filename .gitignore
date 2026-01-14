@@ -1,0 +1,14 @@
+node_modules/
+dist/
+*.log
+.DS_Store
+
+# Test outputs
+test-*.png
+test-*.gif
+test-frames/
+test-fixtures/
+test-output/
+
+# Test scripts
+test-*.mjs

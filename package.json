@@ -1,0 +1,43 @@
+{
+  "name": "browser-viz-skill",
+  "version": "0.1.0",
+  "description": "Browser visualization tool for agent-browser - GIF recording and snapshot annotation",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "bin": {
+    "browser-viz": "./bin/browser-viz.js"
+  },
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "test": "vitest",
+    "lint": "eslint src/",
+    "prepublishOnly": "npm run build"
+  },
+  "keywords": [
+    "browser",
+    "automation",
+    "gif",
+    "annotation",
+    "agent-browser",
+    "claude-code",
+    "skill"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "ws": "^8.18.0",
+    "sharp": "^0.33.5",
+    "commander": "^12.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.10.5",
+    "@types/ws": "^8.5.13",
+    "typescript": "^5.7.2",
+    "vitest": "^2.1.8"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  }
+}
