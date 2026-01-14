@@ -3,12 +3,12 @@ dist/
 *.log
 .DS_Store
 
-# Test outputs
+# Test outputs (temp files)
 test-*.png
 test-*.gif
 test-frames/
 test-fixtures/
-test-output/
+# test-output/ is tracked for documentation GIFs
 
 # Test scripts
 test-*.mjs

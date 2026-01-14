@@ -1,0 +1,11 @@
+file '001-01-initial.png'
+duration 0.5
+file '002-02-checkbox-before.png'
+duration 0.5
+file '003-03-after-toggle.png'
+duration 0.5
+file '004-04-result.png'
+duration 0.5
+file '005-05-final.png'
+duration 0.5
+file '005-05-final.png'
