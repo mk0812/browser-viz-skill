@@ -2,6 +2,8 @@
 
 [agent-browser](https://github.com/vercel-labs/agent-browser)の操作を可視化するClaude Code Skill。GIF録画とスナップショットへのアノテーション（赤枠ハイライト、ズーム）機能を提供します。
 
+**[テスト結果サンプル（GIF付き）を見る →](docs/test-results.md)**
+
 ## 機能
 
 | 機能 | 説明 |
