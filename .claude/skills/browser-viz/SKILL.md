@@ -190,6 +190,173 @@ const combined = await highlightAndZoom("screenshot.png", box,
 await saveImage(combined, "highlight-zoom.png");
 ```
 
+## 赤枠ハイライトの座標精度を高める方法
+
+### 問題: ハードコードされた座標は不正確
+
+テストスクリプトで固定の座標値（例: `{ x: 860, y: 478, width: 95, height: 50 }`）を使用すると、以下の理由でハイライト位置がずれる：
+
+- ブラウザのウィンドウサイズの違い
+- 動的に生成されるコンテンツ
+- タスク数の変化による要素位置の変動
+
+### 解決策: JavaScriptで動的に位置を取得
+
+`agent-browser eval`を使って`getBoundingClientRect()`で要素の正確な位置を取得する。
+
+#### 1. 基本パターン: インデックスで要素を取得
+
+```javascript
+// agent-browser evalの結果は二重にJSONエンコードされる
+function parseEvalResult(result) {
+  if (!result || result === 'null' || result === '"null"') return null;
+  try {
+    const jsonStr = JSON.parse(result);  // 外側のクォートを除去
+    if (!jsonStr || jsonStr === 'null') return null;
+    const obj = JSON.parse(jsonStr);     // 実際のJSONをパース
+    return obj ? { x: obj.x, y: obj.y, width: obj.width, height: obj.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+// ボタンをインデックスで取得
+async function getButtonBoxByIndex(index = 0) {
+  const result = await agentBrowser('eval', [
+    `JSON.stringify(document.querySelectorAll('button')[${index}]?.getBoundingClientRect())`
+  ]);
+  return parseEvalResult(result);
+}
+
+// 使用例
+const addBtnBox = await getButtonBoxByIndex(3); // 4番目のボタン
+```
+
+#### 2. テキストで要素を検索
+
+```javascript
+// ボタンをテキスト内容で検索
+async function getButtonBoxByText(text) {
+  const result = await agentBrowser('eval', [
+    `(function() {
+      var buttons = document.querySelectorAll('button');
+      for(var i=0; i<buttons.length; i++) {
+        if(buttons[i].textContent.indexOf('${text}') !== -1) {
+          var rect = buttons[i].getBoundingClientRect();
+          return JSON.stringify({x: rect.x, y: rect.y, width: rect.width, height: rect.height});
+        }
+      }
+      return "null";
+    })()`
+  ]);
+  return parseEvalResult(result);
+}
+
+// 使用例
+const saveBtnBox = await getButtonBoxByText('保存');
+```
+
+#### 3. 入力要素の取得
+
+```javascript
+async function getInputBoxByIndex(index = 0) {
+  const result = await agentBrowser('eval', [
+    `JSON.stringify(document.querySelectorAll('input')[${index}]?.getBoundingClientRect())`
+  ]);
+  return parseEvalResult(result);
+}
+
+// 使用例: 検索ボックス（最初のinput）
+const searchBox = await getInputBoxByIndex(0);
+
+// 使用例: タイトル入力欄（2番目のinput）
+const titleBox = await getInputBoxByIndex(1);
+```
+
+### 重要: ホバー時のみ表示される要素
+
+編集・削除ボタンなど、ホバー時にのみ表示される要素は、スクリーンショット前にホバーが必要：
+
+```javascript
+// Step 2: 編集ボタンを確認
+let snapshot = await agentBrowser('snapshot', ['-i']);
+const editBtnRef = findRef(snapshot, /button "✎" \[ref=(e\d+)\]/);
+
+// ★重要: ホバーしてボタンを表示させる
+if (editBtnRef) {
+  await agentBrowser('hover', [editBtnRef]);
+  await sleep(300);  // 表示アニメーション待ち
+}
+
+// その後にスクリーンショット
+const editBtnBox = await getButtonBoxByIndex(4);
+await screenshotWithHighlight('02-edit-button', editBtnBox, '編集ボタン');
+```
+
+### eval使用時の注意点
+
+1. **IIFEは`function`構文を使う** - アロー関数 `(() => {})()` はシェルのクォートと相性が悪い
+2. **結果は二重クォート** - `agent-browser eval`の結果は `""{...}""` 形式で返る
+3. **シンプルな式を使う** - 複雑なロジックは避け、`JSON.stringify(element?.getBoundingClientRect())` のようなシンプルな式を使う
+4. **日本語を含む場合は注意** - シェル経由で実行する場合、日本語テキストの検索は避けるかエスケープする
+
+### 完全なヘルパー関数セット
+
+```javascript
+// 共通パーサー
+function parseEvalResult(result) {
+  if (!result || result === 'null' || result === '"null"') return null;
+  try {
+    const jsonStr = JSON.parse(result);
+    if (!jsonStr || jsonStr === 'null') return null;
+    const obj = JSON.parse(jsonStr);
+    return obj ? { x: obj.x, y: obj.y, width: obj.width, height: obj.height } : null;
+  } catch {
+    return null;
+  }
+}
+
+// インデックスベースの取得関数
+async function getButtonBoxByIndex(index) {
+  const result = await agentBrowser('eval', [
+    `JSON.stringify(document.querySelectorAll('button')[${index}]?.getBoundingClientRect())`
+  ]);
+  return parseEvalResult(result);
+}
+
+async function getInputBoxByIndex(index) {
+  const result = await agentBrowser('eval', [
+    `JSON.stringify(document.querySelectorAll('input')[${index}]?.getBoundingClientRect())`
+  ]);
+  return parseEvalResult(result);
+}
+
+async function getCheckboxBoxByIndex(index) {
+  const result = await agentBrowser('eval', [
+    `JSON.stringify(document.querySelectorAll('input[type="checkbox"]')[${index}]?.getBoundingClientRect())`
+  ]);
+  return parseEvalResult(result);
+}
+
+// ハイライト付きスクリーンショット
+async function screenshotWithHighlight(name, box, description) {
+  const rawPath = `${FRAMES_DIR}/${name}-raw.png`;
+  const highlightedPath = `${FRAMES_DIR}/${name}.png`;
+
+  await agentBrowser('screenshot', [rawPath]);
+
+  if (box) {
+    await addHighlight(rawPath, box, highlightedPath);
+  } else {
+    // フォールバック座標を使用
+    await addHighlight(rawPath, { x: 0, y: 0, width: 100, height: 100 }, highlightedPath);
+  }
+
+  console.log(`📸 ${description} (highlighted)`);
+  return highlightedPath;
+}
+```
+
 ## AI Usage Examples
 
 以下のような指示でこのツールを活用できます：
